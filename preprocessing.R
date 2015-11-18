@@ -1,40 +1,4 @@
 # pre-porcessing steps 
-# -	Downloaded file from url 
-#   o	Note due to folder / file length issue, renames file “house_power.txt”  
-#   o	No other edits to the file made other than viewing in text editor 
-# -	Opened in Text Editor 
-#   o	Verified that there were no commas in the file 
-#   o	Verified it was semi-colon delineated 
-#   o	Verified Rows 
-#    	2,075,261 
-#   o	Verified Data Range 
-#    	12/16/2006 - 11/26/2010 
-# -	Noted from question 
-#   o	Desired Date Range 
-#    	2/1/2007 – 2/2/2007 
-# -	In R Studio 
-#   o	Did Date Diff on Start Date / End Date 
-#    	1,441 days 
-#   o	Did estimate of data points per day 
-#    	2,075,261 / 1,441 ~= 1,440 
-#   o	Did estimate of how many readings per day per problem 
-#    	matches 60 * 24 for per minute measurements ~= 1,440 
-#   o	Estimated per R calcs 
-#    	Pre-Subset ~= 67,687 rows 
-#    	Subset ~= 2,880 rows 
-#    	Post-Subset ~=  2,006,133 rows 
-#   o	Reading in subset (using above estimates as a guide / starting point and trial / error to get exact range 
-#    	skip = 67,636 rows, with nrows = 2,880 rows 
-# -	Used read.table to read into R Studio 
-#      o	data.housePower <- read.table(
-#            file = "house_power.txt", header = TRUE, sep = ";", na.strings = "?", 
-#            skip = 66636, nrows = 2880, 
-#            col.names = c("ReadDate", "ReadTime", "Global_active_power", "Global_reactive_power", "Voltage", "Global_intensity", "Sub_metering_1", "Sub_metering_2", "Sub_metering_3" )
-#          )
-# -	viewed the resulting data.table 
-#      o	double-check the resulting data to be processed 
-# -	added columns with Date & Time format respectively to data.table per assignment recommendations 
-
 
 ## This first line will likely take a few seconds. Be patient!
 NEI <- readRDS("..\\..\\Data\\exdata_data_NEI_data\\summarySCC_PM25.rds")
@@ -45,9 +9,10 @@ length(unique(NEI$SCC))
 length(unique(SCC$SCC)) 
 
 library(dplyr)
-library(plyr)
+#library(plyr)
 
-SCC$SCC <- as.character(SCC$SCC)
+# look at some exploratory data items 
+#SCC$SCC <- as.character(SCC$SCC)
 head(SCC$SCC)
 dim(SCC$SCC)
 length(SCC$SCC)
@@ -66,6 +31,15 @@ myColnames <- colnames(NEI)
 myColnames[2] <- "SCCID" 
 colnames(NEI) <- myColnames 
 
+# adjust year field colname 
+myColnames <- colnames(NEI) 
+myColnames[6] <- "Data.Year" 
+colnames(NEI) <- myColnames 
+
+# translate year column to a factor column 
+# NEI$year <- as.factor(NEI$year)
+#NEISCC$year <- as.factor(NEISCC$year)
+
 # NEISCC <- arrange(join(NEI, SCC, id)) 
 # NEISCC <- arrange(join(NEI, SCC, SCCID)) 
 # NEISCC <- join(unlist(NEI$SCC), unlist(SCC$SCC), SCC)
@@ -76,14 +50,85 @@ colnames(NEI) <- myColnames
 #   if the categorization lookup values are missing 
 NEISCC = merge(x = NEI, y = SCC, by.x = "SCCID", by.y = "SCCID", x.all=TRUE)
 
+# running out of memory... call garbage collection... 
+gc()
 
-# add Date formatted column for date 
-# data.housePower <- mutate(data.housePower, ReadDate2 = as.Date(ReadDate, "%d/%m/%Y"))
+# determine unique values 
+unique(NEISCC$year) 
+unique(NEISCC$Pollutant) 
+unique(NEISCC$Data.Category) 
+#unique(NEISCC$Short.Name) 
+unique(NEISCC$SCC.Level.One) 
+unique(NEISCC$SCC.Level.Two) 
+unique(NEISCC$EI.Sector) 
 
-# add Time formatted column for date 
-# had to use cbind as mutate from dplyr does not support POSIXlt 
-##data.housePower <- mutate(data.housePower, ReadTime2 = strptime(ReadTime, "%H:%M:%S"))
-# data.housePower <- cbind(data.housePower, ReadTime2 = strptime(data.housePower$ReadTime, "%H:%M:%S"))
+#rename(NEISCC, Data.Year = year)
 
-# Add Datetime column for time series plots... 
-# data.housePower <- cbind(data.housePower, ReadDateTime6 = strptime(paste(data.housePower$ReadDate, data.housePower$ReadTime), "%d/%m/%Y %H:%M:%S"))
+# summarize the data - group by Year
+#NEISCC.GroupByYear <- ddply(NEISCC, "year", summarise, SumEmissions=sum(Emissions))
+NEISCC.GroupByYear <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  ) 
+
+# summarize the data - group by Year, filter by fips == 24510 (Baltimore, MD)
+NEISCC.GroupByYear.BMD <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  filter(fips == "24510") %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  )    
+
+# summarize the data - group by Year and type, filter by fips == 24510 (Baltimore, MD)
+NEISCC.EmissionsType.BMD <- NEISCC %>% 
+  group_by(Data.Year, type) %>% 
+  filter(fips == "24510") %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  )    
+
+# summarize the data - group by Year and EI.Sector, filter by fips == 24510 (Baltimore, MD)
+NEISCC.EISector.BMD <- NEISCC %>% 
+  group_by(Data.Year, EI.Sector) %>% 
+  filter(fips == "24510") %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  )    
+
+# summarize the data - group by Year, filter by fips == 24510 (Baltimore, MD)
+#   and on Coal-based items
+NEISCC.Coal.BMD <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  filter(fips == "24510" & grepl("[Cc]oal", EI.Sector)) %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  ) 
+
+# summarize the data - group by Year - all US 
+#   and on Coal-based items
+NEISCC.Coal.US <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  filter(grepl("[Cc]oal", EI.Sector)) %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  ) 
+
+# summarize the data - group by Year, filter by fips == 24510 (Baltimore, MD)
+#   and on Mobile On Road Gas (Motor Vehicle) - based items
+NEISCC.MobileGas.BMD <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  filter(fips == "24510" & grepl("[Mm]obile - On-Road Gasoline", EI.Sector)) %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  ) 
+
+
+# summarize the data - group by Year, filter by fips == 06037 (Los Angeles County, CA)
+#   and on Mobile On Road Gas (Motor Vehicle) - based items
+NEISCC.MobilGas.LAX <- NEISCC %>% 
+  group_by(Data.Year) %>% 
+  filter(fips == "06037" & grepl("[Mm]obile - On-Road Gasoline", EI.Sector)) %>% 
+  summarize(
+    sumEmissions = sum(Emissions, na.rm = TRUE) 
+  ) 

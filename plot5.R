@@ -1,4 +1,4 @@
-# plot3.R 
+# plot4.R 
 
 # as question requires preprocessing code to be in each of the plot r scripts, 
 # it is included here as ### preprocessing code ### followed by a separate section 
@@ -152,15 +152,17 @@ NEISCC.MobilGas.LAX <- NEISCC %>%
 ####################################################################
 ####################################################################
 
-library(ggplot2)
+ 
 
-png("plot3.png", width = 480, height = 480, units = "px")
+png("plot5.png", width = 480, height = 480, units = "px")
 
-qplot(Data.Year, sumEmissions, data = NEISCC.EmissionsType.BMD, 
-      color = type, geom = c("point", "smooth"), 
-      main = "Emissions by Emissions Type - PM2.5 vs. Year - Baltimore", 
-      xlab = "Year", 
-      ylab = "Emissions by Emissions Type - PM2.5 (tons)"
-      )
+plot(
+  x = NEISCC.MobileGas.BMD$Data.Year, 
+  y = NEISCC.MobileGas.BMD$sumEmissions, 
+  type = "l",
+  main = "Motor Vehicle Emissions - PM2.5 vs. Year - Baltimore, MD", 
+  xlab = "Year", 
+  ylab = "Motor Vehicle Emissions - PM2.5 (tons)"
+)
 
 dev.off()
